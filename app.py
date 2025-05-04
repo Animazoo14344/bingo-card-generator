@@ -89,18 +89,29 @@ def get_card_range(page):
     end = start + cards_per_page - 1
     return start, end
 
+@app.route('/api/card/<serial_number>')
+def get_card_by_serial(serial_number):
+    conn = sqlite3.connect('bingo_cards.db')
+    c = conn.cursor()
+    c.execute('SELECT card_number, serial_number, production_batch, bingo_numbers FROM cards WHERE serial_number = ?', (serial_number,))
+    result = c.fetchone()
+    conn.close()
+    if result:
+        card_number, serial_num, prod_batch, bingo_nums_str = result
+        bingo_numbers = [ 'FREE' if num == 'FREE' else int(num) for num in bingo_nums_str.split(',') ]
+        return {
+            'card_number': card_number,
+            'serial_number': serial_num,
+            'production_batch': prod_batch,
+            'bingo_numbers': bingo_numbers
+        }
+    else:
+        return {'error': 'Card not found'}, 404
+
 @app.route('/')
 def index():
     page = request.args.get('page', 1, type=int)
-    search_card = request.args.get('search', type=int)
-    
-    if search_card:
-        if 1 <= search_card <= 63000:
-            # Calculate the page number for the searched card
-            page = (search_card - 1) // 36 + 1
-        else:
-            # Invalid card number, default to page 1
-            page = 1
+    # No longer handling search_serial here, search is via API now
     
     # Calculate total pages
     total_cards = 63000
@@ -125,7 +136,6 @@ def index():
                 result = c.fetchone()
                 if result:
                     serial_num, prod_batch, bingo_nums_str = result
-                    # Convert string of numbers back to list
                     bingo_numbers = [
                         'FREE' if num == 'FREE' else int(num) 
                         for num in bingo_nums_str.split(',')
