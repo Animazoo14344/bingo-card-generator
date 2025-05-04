@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JDR Bingo Card Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        @media print {
+            .no-print {
+                display: none;
+            }
+            .page-break {
+                page-break-after: always;
+            }
+            body {
+                margin: 0;
+                padding: 0;
+            }
+            .mt-24 {
+                margin-top: 0 !important;
+            }
+            .p-4 {
+                padding: 0 !important;
+            }
+            .bg-gray-100 {
+                background-color: white !important;
+            }
+            .bingo-card {
+                border: 1px solid #000 !important;
+            }
+        }
+        .bingo-card {
+            aspect-ratio: 1;
+            page-break-inside: avoid;
+            padding: 4px !important;
+        }
+        .bingo-number {
+            width: 100%;
+            height: 0;
+            padding-bottom: 100%;
+            position: relative;
+            /* border: 1px solid #e5e7eb; */ /* Removed border as requested */
+            background-color: transparent;
+        }
+        .bingo-number span {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.05rem; /* increased by 50% from 0.7rem */
+            font-weight: 700; /* changed to bold */
+        }
+        .bingo-number.free span {
+            font-size: 0.7rem; /* original size for FREE cell */
+        }
+        .bingo-header {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-align: center;
+            padding: 1px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .production-batch {
+            font-size: 0.65rem;
+            font-weight: 500;
+            text-align: center;
+            padding: 2px 0;
+            margin: -4px -4px 4px -4px;
+            background-color: #f9fafb;
+            border-bottom: 1px solid #e5e7eb;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .serial-number {
+            position: absolute;
+            bottom: 1px;
+            left: 1px;
+            font-size: 0.6rem;
+            font-weight: 500;
+            background-color: white;
+            padding: 0 1px;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <!-- Header Controls -->
+    <div class="no-print fixed top-0 left-0 right-0 bg-white shadow-md z-50 p-4">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <h1 class="text-2xl font-bold text-gray-800">JDR Bingo Card Generator</h1>
+            
+            <div class="flex items-center space-x-4">
+                <!-- Card Search -->
+                <form onsubmit="searchCard(event)" class="flex items-center space-x-2">
+                    <label for="cardSearch" class="font-medium text-gray-700">Search Card:</label>
+                    <input type="number" id="cardSearch" min="1" max="63000"
+                           class="w-32 border rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                           placeholder="Card #" required>
+                    <button type="submit" 
+                            class="bg-blue-500 text-white px-4 py-1 rounded hover:bg-blue-600 focus:outline-none">
+                        <i class="fas fa-search mr-1"></i>Find
+                    </button>
+                </form>
+
+                <!-- Font Size Selector -->
+                <div class="flex items-center space-x-2">
+                    <label for="fontSizeSelector" class="font-medium text-gray-700">Cell Font Size:</label>
+                    <select id="fontSizeSelector" class="border rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="0.7rem">Small</option>
+                        <option value="1.05rem" selected>Medium</option>
+                        <option value="1.4rem">Large</option>
+                    </select>
+                </div>
+
+                <!-- Print Button -->
+                <button onclick="window.print()" 
+                        class="bg-green-500 text-white px-4 py-1 rounded hover:bg-green-600 focus:outline-none">
+                    <i class="fas fa-print mr-2"></i>Print
+                </button>
+
+                <!-- Navigation -->
+                <div class="flex items-center space-x-2">
+                    <a href="?page={{ page - 1 }}&batch={{ production_batch }}" 
+                       class="{% if page == 1 %}opacity-50 cursor-not-allowed{% endif %} bg-gray-200 px-4 py-1 rounded hover:bg-gray-300"
+                       {% if page == 1 %}disabled{% endif %}>
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                    <span class="font-medium">Page {{ page }} of {{ total_pages }}</span>
+                    <a href="?page={{ page + 1 }}&batch={{ production_batch }}"
+                       class="{% if page == total_pages %}opacity-50 cursor-not-allowed{% endif %} bg-gray-200 px-4 py-1 rounded hover:bg-gray-300"
+                       {% if page == total_pages %}disabled{% endif %}>
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cards Grid -->
+    <div class="mt-24 p-4">
+        <div class="grid grid-cols-6 gap-0">
+            {% for row in cards %}
+                {% for card in row %}
+                    {% if card %}
+                    <div class="bingo-card relative border border-gray-300 bg-white p-2">
+                        <!-- Production Batch Number -->
+                        <div class="production-batch">
+                            {{ card.production_batch if card.production_batch else "Batch #" }}
+                        </div>
+                        
+                        <!-- Bingo Header -->
+                        <div class="grid grid-cols-5 gap-0">
+                            {% for letter in ['B', 'I', 'N', 'G', 'O'] %}
+                            <div class="bingo-header">{{ letter }}</div>
+                            {% endfor %}
+                        </div>
+                        
+                        <!-- Bingo Grid (5x5) -->
+                        <div class="grid grid-cols-5 gap-0">
+                            {% set col0 = card.bingo_numbers[0:5] %}
+                            {% set col1 = card.bingo_numbers[5:10] %}
+                            {% set col2 = card.bingo_numbers[10:15] %}
+                            {% set col3 = card.bingo_numbers[15:20] %}
+                            {% set col4 = card.bingo_numbers[20:25] %}
+                            {% for row in range(5) %}
+                                <div class="bingo-number {% if col0[row] == 'FREE' %}free{% endif %}">
+                                    <span>{{ col0[row] }}</span>
+                                </div>
+                                <div class="bingo-number {% if col1[row] == 'FREE' %}free{% endif %}">
+                                    <span>{{ col1[row] }}</span>
+                                </div>
+                                <div class="bingo-number {% if col2[row] == 'FREE' %}free{% endif %}">
+                                    <span>{{ col2[row] }}</span>
+                                </div>
+                                <div class="bingo-number {% if col3[row] == 'FREE' %}free{% endif %}">
+                                    <span>{{ col3[row] }}</span>
+                                </div>
+                                <div class="bingo-number {% if col4[row] == 'FREE' %}free{% endif %}">
+                                    <span>{{ col4[row] }}</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        
+                        <!-- Serial Number -->
+                        <div class="serial-number">
+                            {{ card.serial_number }}
+                        </div>
+                        
+                        <!-- Invisible Card Number -->
+                        <div class="hidden">{{ card.card_number }}</div>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            {% endfor %}
+        </div>
+    </div>
+
+    <script>
+        function searchCard(event) {
+            event.preventDefault();
+            const cardNumber = document.getElementById('cardSearch').value;
+            if (cardNumber && cardNumber >= 1 && cardNumber <= 63000) {
+                window.location.href = `/?search=${cardNumber}`;
+            } else {
+                alert('Please enter a valid card number between 1 and 63000');
+            }
+        }
+
+        // Font size adjustment
+        const fontSizeSelector = document.getElementById('fontSizeSelector');
+        fontSizeSelector.addEventListener('change', function() {
+            const newSize = this.value;
+            const bingoNumbers = document.querySelectorAll('.bingo-number span');
+            bingoNumbers.forEach(span => {
+                if (!span.parentElement.classList.contains('free')) {
+                    span.style.fontSize = newSize;
+                }
+            });
+            // Save preference to localStorage
+            localStorage.setItem('bingoCellFontSize', newSize);
+        });
+
+        // Load saved font size preference
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedSize = localStorage.getItem('bingoCellFontSize');
+            if (savedSize) {
+                fontSizeSelector.value = savedSize;
+                const bingoNumbers = document.querySelectorAll('.bingo-number span');
+                bingoNumbers.forEach(span => {
+                    if (!span.parentElement.classList.contains('free')) {
+                        span.style.fontSize = savedSize;
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
