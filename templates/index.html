@@ -96,12 +96,12 @@
             <h1 class="text-2xl font-bold text-gray-800">JDR Bingo Card Generator</h1>
             
             <div class="flex items-center space-x-4">
-                <!-- Card Search -->
+                <!-- Serial Number Search -->
                 <form onsubmit="searchCard(event)" class="flex items-center space-x-2">
-                    <label for="cardSearch" class="font-medium text-gray-700">Search Card:</label>
-                    <input type="number" id="cardSearch" min="1" max="63000"
+                    <label for="cardSearch" class="font-medium text-gray-700">Search Serial Number:</label>
+                    <input type="number" id="cardSearch" min="1" max="999999"
                            class="w-32 border rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                           placeholder="Card #" required>
+                           placeholder="Serial #" required>
                     <button type="submit" 
                             class="bg-blue-500 text-white px-4 py-1 rounded hover:bg-blue-600 focus:outline-none">
                         <i class="fas fa-search mr-1"></i>Find
@@ -202,14 +202,61 @@
     </div>
 
     <script>
-        function searchCard(event) {
+        async function searchCard(event) {
             event.preventDefault();
-            const cardNumber = document.getElementById('cardSearch').value;
-            if (cardNumber && cardNumber >= 1 && cardNumber <= 63000) {
-                window.location.href = `/?search=${cardNumber}`;
-            } else {
-                alert('Please enter a valid card number between 1 and 63000');
+            const serialNumber = document.getElementById('cardSearch').value;
+            if (!serialNumber || serialNumber < 1 || serialNumber > 999999) {
+                alert('Please enter a valid serial number between 1 and 999999');
+                return;
             }
+            try {
+                const response = await fetch(`/api/card/${serialNumber.padStart(6, '0')}`);
+                if (response.ok) {
+                    const card = await response.json();
+                    showCardModal(card);
+                } else {
+                    alert('Card is invalid or not found.');
+                }
+            } catch (error) {
+                alert('Error fetching card data.');
+            }
+        }
+
+        function showCardModal(card) {
+            const modal = document.getElementById('cardModal');
+            const modalContent = document.getElementById('modalContent');
+            modalContent.innerHTML = `
+                <h2 class="text-lg font-bold mb-2">Card is valid</h2>
+                <div class="border p-4 bg-white">
+                    <div class="mb-2 font-medium">Serial Number: ${card.serial_number}</div>
+                    <div class="mb-2 font-medium">Production Batch: ${card.production_batch}</div>
+                    <div class="grid grid-cols-5 gap-0 mb-1">
+                        ${['B', 'I', 'N', 'G', 'O'].map(letter => `
+                            <div class="bingo-header">${letter}</div>
+                        `).join('')}
+                    </div>
+                    <div class="grid grid-cols-5 gap-0">
+                        ${['B', 'I', 'N', 'G', 'O'].map((letter, col) => `
+                            <div>
+                                ${[0,1,2,3,4].map(row => {
+                                    const index = row * 5 + col;
+                                    const num = card.bingo_numbers[index];
+                                    return `<div class="bingo-number ${num === 'FREE' ? 'free' : ''}">
+                                                <span>${num}</span>
+                                            </div>`;
+                                }).join('')}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                <button onclick="closeCardModal()" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded">Close</button>
+            `;
+            modal.classList.remove('hidden');
+        }
+
+        function closeCardModal() {
+            const modal = document.getElementById('cardModal');
+            modal.classList.add('hidden');
         }
 
         // Font size adjustment
@@ -240,5 +287,12 @@
             }
         });
     </script>
+
+    <!-- Card Modal -->
+    <div id="cardModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white rounded p-6 max-w-md w-full shadow-lg" id="modalContent">
+            <!-- Modal content will be injected here -->
+        </div>
+    </div>
 </body>
 </html>
